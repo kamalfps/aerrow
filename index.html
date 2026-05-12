@@ -3,145 +3,175 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arrow Puzzle Game</title>
-  <!-- Load Tailwind CSS for instant styling -->
+  <title>Path Escape Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Smooth movement and fade-out animations */
-    .arrow-block {
-      position: absolute;
-      width: 76px; height: 76px;
-      display: flex; align-items: center; justify-content: center;
-      border-radius: 0.5rem; cursor: pointer;
-      transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, background-color 0.2s;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    
-    /* The Shake Animation for blocked moves */
+    body { background-color: #f0f4f8; font-family: sans-serif; user-select: none; }
+    .grid-cell { position: absolute; width: 48px; height: 48px; border-radius: 8px; transition: all 0.2s ease-in-out; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+    /* Shake animation for blocked paths */
     @keyframes shake {
       0%, 100% { transform: translate(var(--tx), var(--ty)) translateX(0); }
-      25% { transform: translate(var(--tx), var(--ty)) translateX(-5px); }
-      50% { transform: translate(var(--tx), var(--ty)) translateX(5px); }
-      75% { transform: translate(var(--tx), var(--ty)) translateX(-5px); }
+      25% { transform: translate(var(--tx), var(--ty)) translateX(-4px); }
+      50% { transform: translate(var(--tx), var(--ty)) translateX(4px); }
+      75% { transform: translate(var(--tx), var(--ty)) translateX(-4px); }
     }
-    .shake { 
-      animation: shake 0.3s; 
-      background-color: #ef4444 !important; 
-    }
+    .shake { animation: shake 0.3s; filter: brightness(0.7); }
+    .escaping { opacity: 0; pointer-events: none; }
   </style>
 </head>
-<body class="bg-slate-900 flex flex-col items-center justify-center min-h-screen text-white select-none">
+<body class="flex flex-col items-center justify-center min-h-screen text-slate-800">
 
-  <h1 id="status" class="text-3xl font-bold mb-8">Tap the Arrows</h1>
+  <h1 id="status" class="text-3xl font-extrabold mb-2 text-blue-600">Arrows Escape</h1>
+  <p class="mb-8 text-slate-500 font-medium">Tap the head of a path to free it</p>
   
-  <!-- Game Board (4x4 Grid) -->
-  <div id="board" class="relative bg-slate-800 rounded-xl p-1 shadow-2xl border border-slate-700 overflow-hidden" style="width: 328px; height: 328px;">
-    <!-- JavaScript will inject the blocks here -->
+  <!-- The Game Board (6x6 Grid for this example) -->
+  <div id="board" class="relative bg-white rounded-2xl shadow-xl border-4 border-slate-200" style="width: 300px; height: 300px;">
+    <!-- JS will inject segments here -->
   </div>
   
-  <button onclick="initGame()" class="mt-10 px-6 py-3 bg-slate-700 font-semibold rounded-md hover:bg-slate-600 transition shadow-lg">
-    Reset Puzzle
+  <button onclick="initGame()" class="mt-10 px-8 py-3 bg-blue-500 text-white font-bold rounded-full hover:bg-blue-600 transition shadow-lg transform hover:scale-105">
+    Restart Level
   </button>
 
   <script>
-    // --- Level Design ---
+    const GRID_SIZE = 50; // 48px size + 2px padding
+
+    // --- Level Design (Paths) ---
+    // The first item in the array is the HEAD (where the arrow is)
+    // The rest of the array is the BODY trailing behind it.
     const INITIAL_LEVEL = [
-      { id: '1', x: 1, y: 1, dir: 'UP' },
-      { id: '2', x: 1, y: 2, dir: 'RIGHT' },
-      { id: '3', x: 2, y: 1, dir: 'LEFT' },
-      { id: '4', x: 2, y: 2, dir: 'DOWN' },
-      { id: '5', x: 1, y: 0, dir: 'RIGHT' },
-      { id: '6', x: 3, y: 2, dir: 'UP' }
+      { 
+        id: 'path1', color: '#3b82f6', dir: 'RIGHT', 
+        segments: [{x: 2, y: 1}, {x: 1, y: 1}, {x: 1, y: 2}, {x: 1, y: 3}] 
+      },
+      { 
+        id: 'path2', color: '#ef4444', dir: 'UP', 
+        segments: [{x: 4, y: 2}, {x: 4, y: 3}, {x: 3, y: 3}, {x: 2, y: 3}, {x: 2, y: 4}] 
+      },
+      { 
+        id: 'path3', color: '#10b981', dir: 'LEFT', 
+        segments: [{x: 3, y: 1}, {x: 4, y: 1}] 
+      }
     ];
 
-    let blocks = [];
-    let escapingIds = [];
+    let paths = [];
 
-    // --- SVG Arrow Icons ---
-    const getSvg = (dir) => {
+    // --- SVG Icons for the Heads ---
+    const getArrowSvg = (dir) => {
       const svgs = {
         'UP': '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />',
         'DOWN': '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />',
         'LEFT': '<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />',
         'RIGHT': '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />'
       };
-      return `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="white" class="w-8 h-8">${svgs[dir]}</svg>`;
+      return `<svg fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor" class="w-6 h-6">${svgs[dir]}</svg>`;
     };
 
-    // --- Collision Logic ---
-    function canEscape(block) {
-      const obstacles = blocks.filter(b => b.id !== block.id && !escapingIds.includes(b.id));
-      for (let obs of obstacles) {
-        if (block.dir === 'UP' && obs.x === block.x && obs.y < block.y) return false;
-        if (block.dir === 'DOWN' && obs.x === block.x && obs.y > block.y) return false;
-        if (block.dir === 'LEFT' && obs.y === block.y && obs.x < block.x) return false;
-        if (block.dir === 'RIGHT' && obs.y === block.y && obs.x > block.x) return false;
+    // --- Logic: Can the path move out? ---
+    function checkCollision(path) {
+      const head = path.segments[0];
+      let checkX = head.x;
+      let checkY = head.y;
+
+      // Calculate where the head wants to go next
+      if (path.dir === 'UP') checkY--;
+      if (path.dir === 'DOWN') checkY++;
+      if (path.dir === 'LEFT') checkX--;
+      if (path.dir === 'RIGHT') checkX++;
+
+      // 1. Is it escaping off the board? (Assuming a 6x6 grid, coordinates 0 to 5)
+      if (checkX < 0 || checkX > 5 || checkY < 0 || checkY > 5) return 'ESCAPE';
+
+      // 2. Is there another path blocking that exact spot?
+      for (let otherPath of paths) {
+        if (otherPath.id === path.id) continue; // Ignore own body
+        for (let seg of otherPath.segments) {
+          if (seg.x === checkX && seg.y === checkY) return 'BLOCKED';
+        }
       }
-      return true;
+      return 'CLEAR'; // The space in front is empty!
     }
 
-    // --- Interaction & Animation ---
-    function handleTap(block, el) {
-      if (escapingIds.includes(block.id)) return;
+    // --- Interaction ---
+    function handleTap(path) {
+      const status = checkCollision(path);
 
-      if (canEscape(block)) {
-        // Path is clear: Animate out
-        escapingIds.push(block.id);
-        el.style.zIndex = '50';
-        
-        const dist = 500;
-        let moveX = (block.x * 80) + 4;
-        let moveY = (block.y * 80) + 4;
-
-        if (block.dir === 'UP') moveY -= dist;
-        if (block.dir === 'DOWN') moveY += dist;
-        if (block.dir === 'LEFT') moveX -= dist;
-        if (block.dir === 'RIGHT') moveX += dist;
-
-        el.style.transform = `translate(${moveX}px, ${moveY}px)`;
-        el.style.opacity = '0';
-
-        // Remove from logic after animation
-        setTimeout(() => {
-          blocks = blocks.filter(b => b.id !== block.id);
-          el.remove();
-          if (blocks.length === 0) document.getElementById('status').innerText = "Level Cleared!";
-        }, 300);
+      if (status === 'BLOCKED') {
+        // Find all HTML elements belonging to this path and shake them
+        document.querySelectorAll(`.${path.id}`).forEach(el => {
+          el.classList.add('shake');
+          setTimeout(() => el.classList.remove('shake'), 300);
+        });
       } else {
-        // Path blocked: Shake animation
-        el.classList.add('shake');
-        setTimeout(() => el.classList.remove('shake'), 300);
+        // Path is CLEAR or ESCAPING!
+        
+        // Remove from logic array immediately
+        paths = paths.filter(p => p.id !== path.id);
+        
+        // Animate HTML elements off screen
+        document.querySelectorAll(`.${path.id}`).forEach((el, index) => {
+          el.style.zIndex = '50';
+          // Move elements far off screen in the direction of the arrow
+          let moveX = parseInt(el.style.getPropertyValue('--tx'));
+          let moveY = parseInt(el.style.getPropertyValue('--ty'));
+          
+          const dist = 400; // pixels to fly off
+          if (path.dir === 'UP') moveY -= dist;
+          if (path.dir === 'DOWN') moveY += dist;
+          if (path.dir === 'LEFT') moveX -= dist;
+          if (path.dir === 'RIGHT') moveX += dist;
+
+          el.style.transform = `translate(${moveX}px, ${moveY}px)`;
+          el.style.opacity = '0';
+          
+          // Clean up DOM after animation
+          setTimeout(() => el.remove(), 300);
+        });
+
+        if (paths.length === 0) document.getElementById('status').innerText = "Level Cleared!";
       }
     }
 
-    // --- Game Renderer ---
+    // --- Render the Game ---
     function initGame() {
-      blocks = JSON.parse(JSON.stringify(INITIAL_LEVEL));
-      escapingIds = [];
-      document.getElementById('status').innerText = "Tap the Arrows";
+      // Deep copy the initial level so we can restart cleanly
+      paths = JSON.parse(JSON.stringify(INITIAL_LEVEL));
+      document.getElementById('status').innerText = "Arrows Escape";
       const board = document.getElementById('board');
-      board.innerHTML = ''; // Clear board
+      board.innerHTML = '';
 
-      blocks.forEach(block => {
-        const el = document.createElement('div');
-        el.className = 'arrow-block bg-blue-500 hover:bg-blue-400 z-10';
-        
-        // Calculate grid position (80px per square + 4px padding)
-        const posX = (block.x * 80) + 4;
-        const posY = (block.y * 80) + 4;
-        
-        // Save base coordinates for the shake animation
-        el.style.setProperty('--tx', `${posX}px`);
-        el.style.setProperty('--ty', `${posY}px`);
-        el.style.transform = `translate(${posX}px, ${posY}px)`;
-        
-        el.innerHTML = getSvg(block.dir);
-        el.onclick = () => handleTap(block, el);
-        board.appendChild(el);
+      paths.forEach(path => {
+        path.segments.forEach((seg, index) => {
+          const el = document.createElement('div');
+          
+          // Give it classes for styling and a unique ID class for group animations
+          el.className = `grid-cell ${path.id}`;
+          el.style.backgroundColor = path.color;
+          
+          // Calculate pixel position on the grid
+          const posX = seg.x * GRID_SIZE;
+          const posY = seg.y * GRID_SIZE;
+          
+          el.style.setProperty('--tx', `${posX}px`);
+          el.style.setProperty('--ty', `${posY}px`);
+          el.style.transform = `translate(${posX}px, ${posY}px)`;
+          
+          // If this is the first segment (Index 0), it is the HEAD. 
+          // Give it the arrow icon and make it clickable.
+          if (index === 0) {
+            el.innerHTML = getArrowSvg(path.dir);
+            el.style.cursor = 'pointer';
+            el.onclick = () => handleTap(path);
+          } else {
+            // Body segments are slightly smaller to look like a connected line
+            el.style.transform = `translate(${posX}px, ${posY}px) scale(0.6)`;
+          }
+          
+          board.appendChild(el);
+        });
       });
     }
 
-    // Start the game on load
     initGame();
   </script>
 </body>
