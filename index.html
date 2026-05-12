@@ -2,177 +2,276 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Path Escape Game</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Arrows Escape Prototype</title>
   <style>
-    body { background-color: #f0f4f8; font-family: sans-serif; user-select: none; }
-    .grid-cell { position: absolute; width: 48px; height: 48px; border-radius: 8px; transition: all 0.2s ease-in-out; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
-    /* Shake animation for blocked paths */
-    @keyframes shake {
-      0%, 100% { transform: translate(var(--tx), var(--ty)) translateX(0); }
-      25% { transform: translate(var(--tx), var(--ty)) translateX(-4px); }
-      50% { transform: translate(var(--tx), var(--ty)) translateX(4px); }
-      75% { transform: translate(var(--tx), var(--ty)) translateX(-4px); }
-    }
-    .shake { animation: shake 0.3s; filter: brightness(0.7); }
-    .escaping { opacity: 0; pointer-events: none; }
+    /* 1. UI Styling to match the Screenshot (SS) */
+    body { margin: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+    
+    /* Blue buttons and header/footer areas */
+    .header { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid #e0e6ed; }
+    .footer { height: 80px; position: absolute; bottom: 0; left: 0; right: 0; background-color: #3b82f6; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; transform: translateY(0); transition: transform 0.3s ease-out; }
+    
+    /* Blue Circular Buttons (Back & Settings) */
+    .circle-btn { width: 44px; height: 44px; border-radius: 22px; background-color: #3b82f6; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .circle-btn:active { transform: scale(0.95); }
+    
+    /* Level Pill and Hearts */
+    .level-pill { padding: 8px 24px; background-color: #3b82f6; color: white; border-radius: 20px; font-weight: bold; font-size: 16px; }
+    .hearts-area { position: absolute; top: 85px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; }
+
+    /* The Main Game Canvas Area */
+    #gameArea { position: absolute; top: 125px; bottom: 80px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; }
+    canvas { display: block; background-color: white; cursor: pointer; transition: transform 0.1s ease-in-out; }
+
+    /* Restart Button (simple style) */
+    .restart-btn { margin-top: 10px; background-color: #f1f5f9; color: #1e293b; border: 2px solid #e2e8f0; font-weight: bold; padding: 8px 16px; border-radius: 8px; }
+
+    /* SVG Icons Embedded for convenience */
+    .svg-icon { fill: white; width: 24px; height: 24px; }
   </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen text-slate-800">
+<body onload="initGame()">
 
-  <h1 id="status" class="text-3xl font-extrabold mb-2 text-blue-600">Arrows Escape</h1>
-  <p class="mb-8 text-slate-500 font-medium">Tap the head of a path to free it</p>
-  
-  <!-- The Game Board (6x6 Grid for this example) -->
-  <div id="board" class="relative bg-white rounded-2xl shadow-xl border-4 border-slate-200" style="width: 300px; height: 300px;">
-    <!-- JS will inject segments here -->
+  <!-- HEADER -->
+  <div class="header">
+    <button class="circle-btn">
+      <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg>
+    </button>
+    <div class="level-pill">Level 36</div>
+    <button class="circle-btn">
+      <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.07L16.56,6.07C16.04,5.68 15.47,5.35 14.86,5.12L14.47,2.45C14.43,2.22 14.24,2.05 14,2.05H10C9.76,2.05 9.57,2.22 9.53,2.45L9.14,5.12C8.53,5.35 7.96,5.68 7.44,6.07L4.95,5.07C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.93L7.44,17.93C7.96,18.32 8.53,18.65 9.14,18.88L9.53,21.55C9.57,21.78 9.76,21.95 10,21.95H14C14.24,21.95 14.43,21.78 14.47,21.55L14.86,18.88C15.47,18.65 16.04,18.32 16.56,17.93L19.05,18.93C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" /></svg>
+    </button>
   </div>
-  
-  <button onclick="initGame()" class="mt-10 px-8 py-3 bg-blue-500 text-white font-bold rounded-full hover:bg-blue-600 transition shadow-lg transform hover:scale-105">
-    Restart Level
-  </button>
+
+  <!-- HEARTS LIVES AREA -->
+  <div class="hearts-area">
+    <svg fill="#ff3030" width="28px" height="28px" viewBox="0 0 24 24"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
+    <svg fill="#ff3030" width="28px" height="28px" viewBox="0 0 24 24"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
+    <svg fill="#ff3030" width="28px" height="28px" viewBox="0 0 24 24"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
+  </div>
+
+  <!-- GAME CANVAS AREA -->
+  <div id="gameArea">
+    <canvas id="gameCanvas" width="360" height="480"></canvas>
+  </div>
+
+  <!-- FOOTER -->
+  <div id="footer" class="footer">
+    <button class="restart-btn" onclick="initGame()">Restart Level</button>
+    <div style="font-size: 24px; font-weight: 800; margin-top: 5px;">Arrows Escape</div>
+  </div>
 
   <script>
-    const GRID_SIZE = 50; // 48px size + 2px padding
+    // --- 2. Advanced Game Engine for Winding Paths ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('ctx');
+    
+    // Grid settings (9x12 grid to fit SS aspect ratio)
+    const ROWS = 12;
+    const COLS = 9;
+    const CELL_SIZE = 40; // Size in pixels
+    const BOARD_WIDTH = COLS * CELL_SIZE;
+    const BOARD_HEIGHT = ROWS * CELL_SIZE;
+    const MARGIN = 0; // Board fits canvas perfectly
 
-    // --- Level Design (Paths) ---
-    // The first item in the array is the HEAD (where the arrow is)
-    // The rest of the array is the BODY trailing behind it.
+    // Path settings (matching SS)
+    const LINE_WIDTH = 6;
+    const ARROW_HEAD_SIZE = 12;
+    const LINE_COLOR = 'black';
+
+    // --- 3. Level Design (Winding paths) ---
+    // The first item in the segments array is the 'Head' coordinate.
     const INITIAL_LEVEL = [
-      { 
-        id: 'path1', color: '#3b82f6', dir: 'RIGHT', 
-        segments: [{x: 2, y: 1}, {x: 1, y: 1}, {x: 1, y: 2}, {x: 1, y: 3}] 
-      },
-      { 
-        id: 'path2', color: '#ef4444', dir: 'UP', 
-        segments: [{x: 4, y: 2}, {x: 4, y: 3}, {x: 3, y: 3}, {x: 2, y: 3}, {x: 2, y: 4}] 
-      },
-      { 
-        id: 'path3', color: '#10b981', dir: 'LEFT', 
-        segments: [{x: 3, y: 1}, {x: 4, y: 1}] 
-      }
+      { id: 'path1', headDir: 'RIGHT', segments: [{x: 3, y: 1}, {x: 2, y: 1}, {x: 1, y: 1}, {x: 1, y: 2}] },
+      { id: 'path2', headDir: 'UP', segments: [{x: 1, y: 3}, {x: 1, y: 4}, {x: 2, y: 4}, {x: 3, y: 4}, {x: 3, y: 5}] },
+      { id: 'path3', headDir: 'DOWN', segments: [{x: 5, y: 3}, {x: 5, y: 2}, {x: 4, y: 2}, {x: 4, y: 1}, {x: 5, y: 1}, {x: 6, y: 1}, {x: 6, y: 2}] },
+      { id: 'path4', headDir: 'LEFT', segments: [{x: 5, y: 5}, {x: 6, y: 5}] },
+      // Path that can move immediately
+      { id: 'path5', headDir: 'LEFT', segments: [{x: 8, y: 7}, {x: 8, y: 8}, {x: 7, y: 8}] },
     ];
 
     let paths = [];
+    let state = 'playing'; // 'playing', 'escaped', 'cleared'
 
-    // --- SVG Icons for the Heads ---
-    const getArrowSvg = (dir) => {
-      const svgs = {
-        'UP': '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />',
-        'DOWN': '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />',
-        'LEFT': '<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />',
-        'RIGHT': '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />'
-      };
-      return `<svg fill="none" viewBox="0 0 24 24" stroke-width="3.5" stroke="currentColor" class="w-6 h-6">${svgs[dir]}</svg>`;
-    };
+    // Convert grid coordinate to center pixel coordinate
+    const gToPx = (coord) => (coord * CELL_SIZE) + (CELL_SIZE / 2);
 
-    // --- Logic: Can the path move out? ---
-    function checkCollision(path) {
-      const head = path.segments[0];
-      let checkX = head.x;
-      let checkY = head.y;
-
-      // Calculate where the head wants to go next
-      if (path.dir === 'UP') checkY--;
-      if (path.dir === 'DOWN') checkY++;
-      if (path.dir === 'LEFT') checkX--;
-      if (path.dir === 'RIGHT') checkX++;
-
-      // 1. Is it escaping off the board? (Assuming a 6x6 grid, coordinates 0 to 5)
-      if (checkX < 0 || checkX > 5 || checkY < 0 || checkY > 5) return 'ESCAPE';
-
-      // 2. Is there another path blocking that exact spot?
-      for (let otherPath of paths) {
-        if (otherPath.id === path.id) continue; // Ignore own body
-        for (let seg of otherPath.segments) {
-          if (seg.x === checkX && seg.y === checkY) return 'BLOCKED';
-        }
-      }
-      return 'CLEAR'; // The space in front is empty!
+    // Drawing Helper: Arrow Head Triangle
+    function drawArrowHead(ctx, x, y, dir) {
+      ctx.save();
+      ctx.translate(x, y);
+      
+      const rotations = { 'UP': -Math.PI/2, 'DOWN': Math.PI/2, 'LEFT': Math.PI, 'RIGHT': 0 };
+      ctx.rotate(rotations[dir]);
+      
+      ctx.beginPath();
+      ctx.moveTo(ARROW_HEAD_SIZE, 0);
+      ctx.lineTo(-ARROW_HEAD_SIZE, ARROW_HEAD_SIZE);
+      ctx.lineTo(-ARROW_HEAD_SIZE, -ARROW_HEAD_SIZE);
+      ctx.closePath();
+      ctx.fillStyle = LINE_COLOR;
+      ctx.fill();
+      
+      ctx.restore();
     }
 
-    // --- Interaction ---
-    function handleTap(path) {
-      const status = checkCollision(path);
-
-      if (status === 'BLOCKED') {
-        // Find all HTML elements belonging to this path and shake them
-        document.querySelectorAll(`.${path.id}`).forEach(el => {
-          el.classList.add('shake');
-          setTimeout(() => el.classList.remove('shake'), 300);
-        });
-      } else {
-        // Path is CLEAR or ESCAPING!
-        
-        // Remove from logic array immediately
-        paths = paths.filter(p => p.id !== path.id);
-        
-        // Animate HTML elements off screen
-        document.querySelectorAll(`.${path.id}`).forEach((el, index) => {
-          el.style.zIndex = '50';
-          // Move elements far off screen in the direction of the arrow
-          let moveX = parseInt(el.style.getPropertyValue('--tx'));
-          let moveY = parseInt(el.style.getPropertyValue('--ty'));
-          
-          const dist = 400; // pixels to fly off
-          if (path.dir === 'UP') moveY -= dist;
-          if (path.dir === 'DOWN') moveY += dist;
-          if (path.dir === 'LEFT') moveX -= dist;
-          if (path.dir === 'RIGHT') moveX += dist;
-
-          el.style.transform = `translate(${moveX}px, ${moveY}px)`;
-          el.style.opacity = '0';
-          
-          // Clean up DOM after animation
-          setTimeout(() => el.remove(), 300);
-        });
-
-        if (paths.length === 0) document.getElementById('status').innerText = "Level Cleared!";
-      }
-    }
-
-    // --- Render the Game ---
-    function initGame() {
-      // Deep copy the initial level so we can restart cleanly
-      paths = JSON.parse(JSON.stringify(INITIAL_LEVEL));
-      document.getElementById('status').innerText = "Arrows Escape";
-      const board = document.getElementById('board');
-      board.innerHTML = '';
-
+    // --- Drawing the State ---
+    function draw() {
+      // Clear background
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw Paths
       paths.forEach(path => {
+        if (path.status === 'hidden') return;
+        
+        ctx.save();
+        
+        // Handle Escape/Shake transformation
+        if (path.status === 'escaping') ctx.translate(path.escapeX, path.escapeY);
+        if (path.status === 'blocked') ctx.translate(path.shakeX, path.shakeY);
+
+        ctx.strokeStyle = LINE_COLOR;
+        ctx.lineWidth = LINE_WIDTH;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Draw the body (solid winding line)
+        ctx.beginPath();
         path.segments.forEach((seg, index) => {
-          const el = document.createElement('div');
-          
-          // Give it classes for styling and a unique ID class for group animations
-          el.className = `grid-cell ${path.id}`;
-          el.style.backgroundColor = path.color;
-          
-          // Calculate pixel position on the grid
-          const posX = seg.x * GRID_SIZE;
-          const posY = seg.y * GRID_SIZE;
-          
-          el.style.setProperty('--tx', `${posX}px`);
-          el.style.setProperty('--ty', `${posY}px`);
-          el.style.transform = `translate(${posX}px, ${posY}px)`;
-          
-          // If this is the first segment (Index 0), it is the HEAD. 
-          // Give it the arrow icon and make it clickable.
-          if (index === 0) {
-            el.innerHTML = getArrowSvg(path.dir);
-            el.style.cursor = 'pointer';
-            el.onclick = () => handleTap(path);
-          } else {
-            // Body segments are slightly smaller to look like a connected line
-            el.style.transform = `translate(${posX}px, ${posY}px) scale(0.6)`;
-          }
-          
-          board.appendChild(el);
+          if (index === 0) ctx.moveTo(gToPx(seg.x), gToPx(seg.y));
+          else ctx.lineTo(gToPx(seg.x), gToPx(seg.y));
         });
+        ctx.stroke();
+
+        // Draw the arrow head at the first segment coordinate
+        const head = path.segments[0];
+        drawArrowHead(ctx, gToPx(head.x), gToPx(head.y), path.headDir);
+
+        ctx.restore();
       });
     }
 
-    initGame();
+    // --- Logic: Handle Tap and Path Escaping ---
+    function checkCollision(path, head) {
+      // 1. Where does the head want to go?
+      let nextX = head.x;
+      let nextY = head.y;
+      if (path.headDir === 'UP') nextY--;
+      if (path.headDir === 'DOWN') nextY++;
+      if (path.headDir === 'LEFT') nextX--;
+      if (path.headDir === 'RIGHT') nextX++;
+
+      // 2. Is it leaving the board?
+      if (nextX < 0 || nextX >= COLS || nextY < 0 || nextY >= ROWS) return false;
+
+      // 3. Is another path blocking that spot?
+      for (let otherPath of paths) {
+        if (otherPath.id === path.id) continue; // Own body is safe
+        if (otherPath.status === 'playing') {
+          for (let seg of otherPath.segments) {
+            if (seg.x === nextX && seg.y === nextY) return true; // BLOCKED
+          }
+        }
+      }
+      return false; // CLEAR
+    }
+
+    // Handle Clicks/Taps on Head
+    canvas.addEventListener('click', (e) => {
+      if (state !== 'playing') return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      for (let path of paths) {
+        if (path.status !== 'playing') continue;
+        
+        const head = path.segments[0];
+        const hX = gToPx(head.x);
+        const hY = gToPx(head.y);
+        
+        // Tap area check (20px radius around head)
+        const dx = clickX - hX;
+        const dy = clickY - hY;
+        if (Math.sqrt(dx*dx + dy*dy) < 20) {
+          handlePathTap(path, head);
+          break; // Stop checking other paths
+        }
+      }
+    });
+
+    // Tap Logic and Animations (manual game loop for vanilla compatibility)
+    function handlePathTap(path, head) {
+      if (checkCollision(path, head)) {
+        // Blocked: Shake animation
+        state = 'animating';
+        path.status = 'blocked';
+        path.shakeX = 0;
+        path.shakeY = 0;
+        
+        // Primitive manual animation loop
+        let frames = 0;
+        const interval = setInterval(() => {
+          frames++;
+          if (frames > 15) { 
+            clearInterval(interval); 
+            path.status = 'playing'; 
+            state = 'playing'; 
+            draw(); 
+            return; 
+          }
+          path.shakeX = Math.sin(frames) * 3; // Horizontal shake
+          draw();
+        }, 16); // ~60fps
+      } else {
+        // Clear: Escape animation
+        state = 'animating';
+        path.status = 'escaping';
+        path.escapeX = 0;
+        path.escapeY = 0;
+        
+        const dist = 500; // Fly distance off screen
+        const duration = 20; // total frames
+        let frames = 0;
+
+        const interval = setInterval(() => {
+          frames++;
+          if (frames > duration) { 
+            clearInterval(interval); 
+            path.status = 'hidden'; 
+            checkWinState(); 
+            state = 'playing'; // Unlock logic
+            draw(); 
+            return; 
+          }
+          const offset = (frames / duration) * dist;
+          if (path.headDir === 'UP') path.escapeY = -offset;
+          if (path.headDir === 'DOWN') path.escapeY = offset;
+          if (path.headDir === 'LEFT') path.escapeX = -offset;
+          if (path.headDir === 'RIGHT') path.escapeX = offset;
+          draw();
+        }, 16);
+      }
+    }
+
+    function checkWinState() {
+      if (paths.every(p => p.status === 'hidden')) {
+        document.getElementById('footer').style.transform = 'translateY(-10px)';
+        state = 'cleared';
+      }
+    }
+
+    // --- Init ---
+    function initGame() {
+      // Deep copy level data and reset state
+      paths = JSON.parse(JSON.stringify(INITIAL_LEVEL));
+      paths.forEach(p => p.status = 'playing');
+      document.getElementById('footer').style.transform = 'translateY(0)';
+      state = 'playing';
+      draw();
+    }
   </script>
 </body>
 </html>
