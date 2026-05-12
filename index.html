@@ -5,29 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Arrows Escape Prototype</title>
   <style>
-    /* 1. UI Styling to match the Screenshot (SS) */
-    body { margin: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+    /* UI Styling */
+    body { margin: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; overflow: hidden; }
     
-    /* Blue buttons and header/footer areas */
     .header { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid #e0e6ed; }
     .footer { height: 80px; position: absolute; bottom: 0; left: 0; right: 0; background-color: #3b82f6; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; transform: translateY(0); transition: transform 0.3s ease-out; }
     
-    /* Blue Circular Buttons (Back & Settings) */
     .circle-btn { width: 44px; height: 44px; border-radius: 22px; background-color: #3b82f6; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .circle-btn:active { transform: scale(0.95); }
     
-    /* Level Pill and Hearts */
     .level-pill { padding: 8px 24px; background-color: #3b82f6; color: white; border-radius: 20px; font-weight: bold; font-size: 16px; }
     .hearts-area { position: absolute; top: 85px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; }
 
-    /* The Main Game Canvas Area */
     #gameArea { position: absolute; top: 125px; bottom: 80px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; }
-    canvas { display: block; background-color: white; cursor: pointer; transition: transform 0.1s ease-in-out; }
+    canvas { display: block; background-color: white; cursor: pointer; }
 
-    /* Restart Button (simple style) */
-    .restart-btn { margin-top: 10px; background-color: #f1f5f9; color: #1e293b; border: 2px solid #e2e8f0; font-weight: bold; padding: 8px 16px; border-radius: 8px; }
+    .restart-btn { margin-top: 10px; background-color: #f1f5f9; color: #1e293b; border: 2px solid #e2e8f0; font-weight: bold; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
 
-    /* SVG Icons Embedded for convenience */
     .svg-icon { fill: white; width: 24px; height: 24px; }
   </style>
 </head>
@@ -44,14 +38,14 @@
     </button>
   </div>
 
-  <!-- HEARTS LIVES AREA -->
+  <!-- HEARTS -->
   <div class="hearts-area">
     <svg fill="#ff3030" width="28px" height="28px" viewBox="0 0 24 24"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
     <svg fill="#ff3030" width="28px" height="28px" viewBox="0 0 24 24"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
     <svg fill="#ff3030" width="28px" height="28px" viewBox="0 0 24 24"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
   </div>
 
-  <!-- GAME CANVAS AREA -->
+  <!-- GAME CANVAS -->
   <div id="gameArea">
     <canvas id="gameCanvas" width="360" height="480"></canvas>
   </div>
@@ -63,71 +57,56 @@
   </div>
 
   <script>
-    // --- 2. Advanced Game Engine for Winding Paths ---
     const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('ctx');
+    // FIXED: This used to say 'ctx', which broke the graphics engine!
+    const ctx = canvas.getContext('2d'); 
     
-    // Grid settings (9x12 grid to fit SS aspect ratio)
     const ROWS = 12;
     const COLS = 9;
-    const CELL_SIZE = 40; // Size in pixels
-    const BOARD_WIDTH = COLS * CELL_SIZE;
-    const BOARD_HEIGHT = ROWS * CELL_SIZE;
-    const MARGIN = 0; // Board fits canvas perfectly
-
-    // Path settings (matching SS)
+    const CELL_SIZE = 40; 
     const LINE_WIDTH = 6;
     const ARROW_HEAD_SIZE = 12;
-    const LINE_COLOR = 'black';
+    const LINE_COLOR = '#1e293b'; // Nice dark slate color
 
-    // --- 3. Level Design (Winding paths) ---
-    // The first item in the segments array is the 'Head' coordinate.
+    // --- Level Design ---
     const INITIAL_LEVEL = [
       { id: 'path1', headDir: 'RIGHT', segments: [{x: 3, y: 1}, {x: 2, y: 1}, {x: 1, y: 1}, {x: 1, y: 2}] },
       { id: 'path2', headDir: 'UP', segments: [{x: 1, y: 3}, {x: 1, y: 4}, {x: 2, y: 4}, {x: 3, y: 4}, {x: 3, y: 5}] },
       { id: 'path3', headDir: 'DOWN', segments: [{x: 5, y: 3}, {x: 5, y: 2}, {x: 4, y: 2}, {x: 4, y: 1}, {x: 5, y: 1}, {x: 6, y: 1}, {x: 6, y: 2}] },
       { id: 'path4', headDir: 'LEFT', segments: [{x: 5, y: 5}, {x: 6, y: 5}] },
-      // Path that can move immediately
       { id: 'path5', headDir: 'LEFT', segments: [{x: 8, y: 7}, {x: 8, y: 8}, {x: 7, y: 8}] },
     ];
 
     let paths = [];
-    let state = 'playing'; // 'playing', 'escaped', 'cleared'
+    let state = 'playing';
 
-    // Convert grid coordinate to center pixel coordinate
     const gToPx = (coord) => (coord * CELL_SIZE) + (CELL_SIZE / 2);
 
-    // Drawing Helper: Arrow Head Triangle
     function drawArrowHead(ctx, x, y, dir) {
       ctx.save();
       ctx.translate(x, y);
-      
       const rotations = { 'UP': -Math.PI/2, 'DOWN': Math.PI/2, 'LEFT': Math.PI, 'RIGHT': 0 };
       ctx.rotate(rotations[dir]);
       
       ctx.beginPath();
+      // Draw a solid triangle for the arrow head
       ctx.moveTo(ARROW_HEAD_SIZE, 0);
       ctx.lineTo(-ARROW_HEAD_SIZE, ARROW_HEAD_SIZE);
       ctx.lineTo(-ARROW_HEAD_SIZE, -ARROW_HEAD_SIZE);
       ctx.closePath();
+      
       ctx.fillStyle = LINE_COLOR;
       ctx.fill();
-      
       ctx.restore();
     }
 
-    // --- Drawing the State ---
     function draw() {
-      // Clear background
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Draw Paths
       paths.forEach(path => {
         if (path.status === 'hidden') return;
         
         ctx.save();
-        
-        // Handle Escape/Shake transformation
         if (path.status === 'escaping') ctx.translate(path.escapeX, path.escapeY);
         if (path.status === 'blocked') ctx.translate(path.shakeX, path.shakeY);
 
@@ -136,7 +115,6 @@
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Draw the body (solid winding line)
         ctx.beginPath();
         path.segments.forEach((seg, index) => {
           if (index === 0) ctx.moveTo(gToPx(seg.x), gToPx(seg.y));
@@ -144,7 +122,6 @@
         });
         ctx.stroke();
 
-        // Draw the arrow head at the first segment coordinate
         const head = path.segments[0];
         drawArrowHead(ctx, gToPx(head.x), gToPx(head.y), path.headDir);
 
@@ -152,9 +129,7 @@
       });
     }
 
-    // --- Logic: Handle Tap and Path Escaping ---
     function checkCollision(path, head) {
-      // 1. Where does the head want to go?
       let nextX = head.x;
       let nextY = head.y;
       if (path.headDir === 'UP') nextY--;
@@ -162,89 +137,61 @@
       if (path.headDir === 'LEFT') nextX--;
       if (path.headDir === 'RIGHT') nextX++;
 
-      // 2. Is it leaving the board?
       if (nextX < 0 || nextX >= COLS || nextY < 0 || nextY >= ROWS) return false;
 
-      // 3. Is another path blocking that spot?
       for (let otherPath of paths) {
-        if (otherPath.id === path.id) continue; // Own body is safe
+        if (otherPath.id === path.id) continue;
         if (otherPath.status === 'playing') {
           for (let seg of otherPath.segments) {
-            if (seg.x === nextX && seg.y === nextY) return true; // BLOCKED
+            if (seg.x === nextX && seg.y === nextY) return true;
           }
         }
       }
-      return false; // CLEAR
+      return false;
     }
 
-    // Handle Clicks/Taps on Head
     canvas.addEventListener('click', (e) => {
       if (state !== 'playing') return;
-      
       const rect = canvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
 
       for (let path of paths) {
         if (path.status !== 'playing') continue;
-        
         const head = path.segments[0];
-        const hX = gToPx(head.x);
-        const hY = gToPx(head.y);
+        const dx = clickX - gToPx(head.x);
+        const dy = clickY - gToPx(head.y);
         
-        // Tap area check (20px radius around head)
-        const dx = clickX - hX;
-        const dy = clickY - hY;
-        if (Math.sqrt(dx*dx + dy*dy) < 20) {
+        // Check if user clicked near the arrow head
+        if (Math.sqrt(dx*dx + dy*dy) < 25) {
           handlePathTap(path, head);
-          break; // Stop checking other paths
+          break;
         }
       }
     });
 
-    // Tap Logic and Animations (manual game loop for vanilla compatibility)
     function handlePathTap(path, head) {
       if (checkCollision(path, head)) {
-        // Blocked: Shake animation
         state = 'animating';
         path.status = 'blocked';
-        path.shakeX = 0;
-        path.shakeY = 0;
-        
-        // Primitive manual animation loop
+        path.shakeX = 0; path.shakeY = 0;
         let frames = 0;
         const interval = setInterval(() => {
           frames++;
-          if (frames > 15) { 
-            clearInterval(interval); 
-            path.status = 'playing'; 
-            state = 'playing'; 
-            draw(); 
-            return; 
-          }
-          path.shakeX = Math.sin(frames) * 3; // Horizontal shake
+          if (frames > 15) { clearInterval(interval); path.status = 'playing'; state = 'playing'; draw(); return; }
+          path.shakeX = Math.sin(frames) * 4;
           draw();
-        }, 16); // ~60fps
+        }, 16);
       } else {
-        // Clear: Escape animation
         state = 'animating';
         path.status = 'escaping';
-        path.escapeX = 0;
-        path.escapeY = 0;
-        
-        const dist = 500; // Fly distance off screen
-        const duration = 20; // total frames
-        let frames = 0;
+        path.escapeX = 0; path.escapeY = 0;
+        const dist = 500; const duration = 20; let frames = 0;
 
         const interval = setInterval(() => {
           frames++;
           if (frames > duration) { 
-            clearInterval(interval); 
-            path.status = 'hidden'; 
-            checkWinState(); 
-            state = 'playing'; // Unlock logic
-            draw(); 
-            return; 
+            clearInterval(interval); path.status = 'hidden'; checkWinState(); state = 'playing'; draw(); return; 
           }
           const offset = (frames / duration) * dist;
           if (path.headDir === 'UP') path.escapeY = -offset;
@@ -258,17 +205,15 @@
 
     function checkWinState() {
       if (paths.every(p => p.status === 'hidden')) {
-        document.getElementById('footer').style.transform = 'translateY(-10px)';
         state = 'cleared';
+        // Add a simple win alert so you know you beat it
+        setTimeout(() => alert("Level Cleared! Tap Restart to play again."), 100);
       }
     }
 
-    // --- Init ---
     function initGame() {
-      // Deep copy level data and reset state
       paths = JSON.parse(JSON.stringify(INITIAL_LEVEL));
       paths.forEach(p => p.status = 'playing');
-      document.getElementById('footer').style.transform = 'translateY(0)';
       state = 'playing';
       draw();
     }
